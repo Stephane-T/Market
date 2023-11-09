@@ -15,7 +15,10 @@
               101 "Shutdown in process"
               401 "Missing parameter"
               402 "Incorrect data"
-              403 "Incorrect parameter"})
+              403 "Incorrect parameter"
+              404 "Incorrect amount"
+              405 "Incorrect address"
+              406 "Incorrect currency"})
 
 (def currencies ["EUR" "USD" "BTC" "USDT"])
 
@@ -95,10 +98,9 @@
            (nil? (content "to"))
            (nil? (content "amount"))
            (nil? (content "currency"))) (json-answer {} {} 401)
-          (or
-           (not (number? (content "amount")))
-           (not (@addr "to"))
-           (not (seq (filter  (fn [x] (= (content "currency" x))  ["EUR" "USD" "BTC"]))))) (json-answer {} {} 403)
+          (not (number? (content "amount"))) (json-answer {} {} 404)
+          (not (@addr (content "to"))) (json-answer {} {} 405)
+          (not (seq (filter  (fn [x] (= (content "currency") x))  currencies))) (json-answer {} {} 406)
           true (do
                  (swap! action conj ["credit" txid (content "to") (content "currency") (content "amount")])
                  (json-answer {} {"txid" txid} 0)))))
@@ -122,7 +124,9 @@
   (GET "/shutdown"    {params :query-params} (json-answer params {:shutdown (exit)} 0))
   (GET "/actions"     {params :query-params} (json-answer params {:actions @action} 0))
   (POST "/credit"     {body :body} (if (= @shutdown 0)
-                                     (let [b (slurp body)] (credit b))
+                                     (let [b (slurp body)]
+                                       (println b)
+                                       (credit b))
                                      (json-answer body 0)))
   (GET "/param"       {params :query-params} (str params))
   (POST "/param"      {body :body} (let [b (slurp body)] b))
