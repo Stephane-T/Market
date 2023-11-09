@@ -90,6 +90,9 @@
 (defn save-addr []
   (spit addr-file (str @addr)))
 
+(defn save-wallet []
+  (spit wallet-file (str @wallet)))
+
 (defn credit [json]
   (let [content (ignore-errors [] (json/parse-string json))
         txid (str "x" (generate-random-hash))]
@@ -113,6 +116,14 @@
                                                    (save-addr)
                                                    (save-event "new" (nth (last @action) 1) (nth (last @action) 2) "" "" "")
                                                    (swap! action butlast))
+          (= first (last @action) "credit") (do
+                                              (print ln "Credit")
+                                              (dosync
+                                               (alter wallet conj [(str (nth (last @action) 2) "--" (nth (last @action) 3))
+                                                                   (+ (get @wallet (str (nth (last @action) 2) "--" (nth (last @action) 3)) 0)
+                                                                      (nth (last @action) 4))]))
+                                              (save-wallet))
+                                              
           true (sleep 1))))
 
 
