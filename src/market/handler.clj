@@ -74,6 +74,8 @@
      :headers {"Content-Type" "Application/json charset=utf-8"}
      :body (json/generate-string (conj [:status 101
                                         :status-txt (get lstatus 101)]))}))
+(defn round [s n]
+  (.setScale (bigdec n) s java.math.RoundingMode/HALF_EVEN))
 
 (defn generate-random-hash []
   (let [a (transient [])]
