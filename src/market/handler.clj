@@ -59,7 +59,8 @@
 
 
 (defn save-event [event-type txid addr currency amount info]
-  (spit event-file (format "%s,%s,%s,%s,%s,%s,%s\n" (now) event-type txid addr currency amount info) :append true))
+  (swap! action conj ["save-event" event-type txid addr currency amount info]))
+
 
 
 (defn json-answer [params h error-code]
@@ -85,6 +86,7 @@
         txid (str "x" (generate-random-hash))]
     (dosync (alter addr (fn [x] (conj x [new-addr 1]))))
     (swap! action conj ["save-addr" txid new-addr])
+    (save-event "new" (nth (last @action) 1) (nth (last @action) 2) "" "" "")
     new-addr))
 
 (defn save-addr []
@@ -108,22 +110,31 @@
                  (swap! action conj ["credit" txid (content "to") (content "currency") (content "amount")])
                  (json-answer {} {"txid" txid} 0)))))
                                        
-
+;   (swap! action conj ["save-event" event-type txid addr currency amount info]))
 (future
   (while true
     (cond (= (first (last @action)) "save-addr") (do
                                                    (println "Save address")
                                                    (save-addr)
-                                                   (save-event "new" (nth (last @action) 1) (nth (last @action) 2) "" "" "")
+                                                   
                                                    (swap! action butlast))
-          (= first (last @action) "credit") (do
-                                              (print ln "Credit")
-                                              (dosync
-                                               (alter wallet conj [(str (nth (last @action) 2) "--" (nth (last @action) 3))
-                                                                   (+ (get @wallet (str (nth (last @action) 2) "--" (nth (last @action) 3)) 0)
-                                                                      (nth (last @action) 4))]))
-                                              (save-wallet))
-                                              
+          (= (first (last @action)) "credit") (do
+                                                (let [line (last @action)]
+                                                  (println "Credit")
+                                                  (dosync
+                                                   (alter wallet conj [(str (line 2) "--" (line 3))
+                                                                       (+ (get @wallet (str (line 2) "--" (line 3)) 0)
+                                                                          (line 4))]))
+                                                  (save-wallet)
+                                                  (save-event (line 0) (line 1) (line 2) (line 3) (line 4) "")
+                                                  (swap! action butlast)))
+                                                
+          (= (first (last @action)) "save-event") (do
+                                                    (let [line (last @action)]
+                                                      (spit event-file (format "%s,%s,%s,%s,%s,%s,%s\n"
+                                                                               (now) (line 1) (line 2) (line 3) (line 4)
+                                                                               (line 5) (line 6)) :append true))
+                                                    (swap! action butlast))
           true (sleep 1))))
 
 
@@ -138,7 +149,7 @@
                                      (let [b (slurp body)]
                                        (println b)
                                        (credit b))
-                                     (json-answer body 0)))
+                                     (json-answer body {} 0)))
   (GET "/param"       {params :query-params} (str params))
   (POST "/param"      {body :body} (let [b (slurp body)] b))
   (route/not-found "Not Found"))
