@@ -2,6 +2,7 @@
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
             [cheshire.core :as json]
+            [clojure.string :as str]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]))
 
 (import 'java.security.MessageDigest
@@ -112,7 +113,9 @@
                  (swap! action conj ["credit" txid (content "to") (content "currency") (content "amount")])
                  (json-answer {} {"txid" txid} 0)))))
                                        
-;   (swap! action conj ["save-event" event-type txid addr currency amount info]))
+
+
+
 (future
   (while true
     (cond (= (first (last @action)) "save-addr") (do
@@ -147,6 +150,7 @@
   (GET "/currencies"  {params :query-params} (json-answer params {:currencies currencies} 0))
   (GET "/shutdown"    {params :query-params} (json-answer params {:shutdown (exit)} 0))
   (GET "/actions"     {params :query-params} (json-answer params {:actions @action} 0))
+  (GET "/wallets"     {params :query-params} (json-answer params {:wallets @wallet} 0))
   (POST "/credit"     {body :body} (if (= @shutdown 0)
                                      (let [b (slurp body)]
                                        (println b)
