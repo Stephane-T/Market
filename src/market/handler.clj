@@ -21,9 +21,10 @@
               405 "Incorrect address"
               406 "Incorrect currency"})
 
-(def currencies ["EUR" "USD" "BTC" "USDT"])
-
-
+(def currencies {"EUR" 2
+                 "USD" 2
+                 "BTC" 6
+                 "USDT"2})
 
 (defn md5 [s]
   (let [algorithm (MessageDigest/getInstance "MD5")
@@ -108,12 +109,14 @@
            (nil? (content "currency"))) (json-answer {} {} 401)
           (not (number? (content "amount"))) (json-answer {} {} 404)
           (not (@addr (content "to"))) (json-answer {} {} 405)
-          (not (seq (filter  (fn [x] (= (content "currency") x))  currencies))) (json-answer {} {} 406)
+          (not (seq (filter  (fn [x] (= (content "currency") x))  (keys currencies)))) (json-answer {} {} 406)
           true (do
                  (swap! action conj ["credit" txid (content "to") (content "currency") (content "amount")])
                  (json-answer {} {"txid" txid} 0)))))
                                        
 
+(defn balance [addr currency]
+  (round (currencies currency 2) (wallet (str addr "--" currency) 0)))
 
 
 (future
@@ -151,6 +154,7 @@
   (GET "/shutdown"    {params :query-params} (json-answer params {:shutdown (exit)} 0))
   (GET "/actions"     {params :query-params} (json-answer params {:actions @action} 0))
   (GET "/wallets"     {params :query-params} (json-answer params {:wallets @wallet} 0))
+  (GET "/balance"     {params :query-params} (json-answer params {:balance (balance (params "address" "") (params "currency" ""))} 0))
   (POST "/credit"     {body :body} (if (= @shutdown 0)
                                      (let [b (slurp body)]
                                        (println b)
