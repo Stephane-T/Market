@@ -19,7 +19,8 @@
               403 "Incorrect parameter"
               404 "Incorrect amount"
               405 "Incorrect address"
-              406 "Incorrect currency"})
+              406 "Incorrect currency"
+              407 "Incorrect offer price"})
 
 (def currencies {"EUR" 2
                  "USD" 2
@@ -42,11 +43,12 @@
 (def addr-file "/Users/stephane/tmp/addr")
 (def wallet-file "/Users/stephane/tmp/wallet")
 (def event-file "/Users/stephane/tmp/event.log")
-
+(def offer-file "/Users/stephane/tmp/offer.log")
 (def addr (ref (ignore-errors {} (read-string (slurp addr-file)))))
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
-
+(def offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
 (def action (atom ()))
+(defstruct offer :address :currency :amount :price :rcurrency)
 
 (defmacro now [] `(str (java.util.Date.)))
 
@@ -99,6 +101,29 @@
 (defn save-wallet []
   (spit wallet-file (str @wallet)))
 
+(defn offer [json]
+  (let [content (ignore-errors [] (json/parse-string json))
+        txid (str "O" (generate-random-hash))]
+    (cond (nil? content) (json-answer {} {} 402)
+          (or
+           (nil? (content "address"))
+           (nil? (content "currency"))
+           (nil? (content "amount"))
+           (nil? (content "price"))
+           (nil? (content "rcurrency"))) (json-answer {} {} 401)
+          
+          (not (@addr (content "address"))) (json-answer {} {} 405)
+          (not (@currencies (content "currency"))) (json-answer {} {} 406)
+          (not (number? (content "amount"))) (json-answer {} {} 404)
+          (not (number? (content "price"))) (json-answer {} {} 407)
+          (not (@currencies (content "rcurrency"))) (json {} {} 406)
+          true (do
+                 (swap! action conj ["offer" txid (content "address") (content "currency") (content "amount") (content "price") (content "rcurrency")])
+                 (json-answer {} {"txid" txid} 0)))))
+    
+           
+
+           
 (defn credit [json]
   (let [content (ignore-errors [] (json/parse-string json))
         txid (str "x" (generate-random-hash))]
@@ -109,7 +134,7 @@
            (nil? (content "currency"))) (json-answer {} {} 401)
           (not (number? (content "amount"))) (json-answer {} {} 404)
           (not (@addr (content "to"))) (json-answer {} {} 405)
-          (not (seq (filter  (fn [x] (= (content "currency") x))  (keys currencies)))) (json-answer {} {} 406)
+          (not (@currencies (content "currency"))) (json-answer {} {} 406)
           true (do
                  (swap! action conj ["credit" txid (content "to") (content "currency") (content "amount")])
                  (json-answer {} {"txid" txid} 0)))))
@@ -160,6 +185,12 @@
                                        (println b)
                                        (credit b))
                                      (json-answer body {} 0)))
+  (POST "/offer"     {body :body} (if (= @shutdown 0)
+                                     (let [b (slurp body)]
+                                       (println b)
+                                       (credit b))
+                                     (json-answer offer {} 0)))
+
   (GET "/param"       {params :query-params} (str params))
   (POST "/param"      {body :body} (let [b (slurp body)] b))
   (route/not-found "Not Found"))
