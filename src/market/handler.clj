@@ -48,7 +48,7 @@
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
 (def offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
 (def action (atom ()))
-(defstruct offer :address :currency :amount :price :rcurrency)
+(defstruct offer :txid :address :currency :amount :price :rcurrency)
 
 (defmacro now [] `(str (java.util.Date.)))
 
@@ -61,6 +61,15 @@
             (System/exit 0)))
   "Shutdown in 10 seconds")
 
+(defn find-offer [amount currency rcurrency]
+  (let [ret (transient [])] 
+    (doseq (foffer offer)
+      (if (and (= (foffer :currency) rcurrency)
+               (= (foffer :rcurrency) currency)
+               (>= (foffer :amount) amount))
+        (conj! ret (foffer :txid))))
+    (persistent! ret)))
+  
 
 (defn save-event [event-type txid addr currency amount info]
   (swap! action conj ["save-event" event-type txid addr currency amount info]))
@@ -100,6 +109,11 @@
 
 (defn save-wallet []
   (spit wallet-file (str @wallet)))
+
+(defn save-offer []
+  (split offer-file (str @offer)))
+
+
 
 (defn offer [json]
   (let [content (ignore-errors [] (json/parse-string json))
