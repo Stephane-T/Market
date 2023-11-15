@@ -43,7 +43,7 @@
 (def addr-file "/Users/stephane/tmp/addr")
 (def wallet-file "/Users/stephane/tmp/wallet")
 (def event-file "/Users/stephane/tmp/event.log")
-(def offer-file "/Users/stephane/tmp/offer.log")
+(def offer-file "/Users/stephane/tmp/offer")
 (def addr (ref (ignore-errors {} (read-string (slurp addr-file)))))
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
 (def offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
@@ -63,7 +63,7 @@
 
 (defn find-offer [amount currency rcurrency]
   (let [ret (transient [])] 
-    (doseq (foffer offer)
+    (doseq [foffer offer]
       (if (and (= (foffer :currency) rcurrency)
                (= (foffer :rcurrency) currency)
                (>= (foffer :amount) amount))
@@ -111,7 +111,7 @@
   (spit wallet-file (str @wallet)))
 
 (defn save-offer []
-  (split offer-file (str @offer)))
+  (spit offer-file (str @offer)))
 
 
 
@@ -202,8 +202,8 @@
   (POST "/offer"     {body :body} (if (= @shutdown 0)
                                      (let [b (slurp body)]
                                        (println b)
-                                       (credit b))
-                                     (json-answer offer {} 0)))
+                                       (offer b))
+                                     (json-answer body {} 0)))
 
   (GET "/param"       {params :query-params} (str params))
   (POST "/param"      {body :body} (let [b (slurp body)] b))
