@@ -25,7 +25,7 @@
 (def currencies {"EUR" 2
                  "USD" 2
                  "BTC" 6
-                 "USDT"2})
+                 "USDT" 2})
 
 (defn md5 [s]
   (let [algorithm (MessageDigest/getInstance "MD5")
@@ -47,9 +47,7 @@
 (def addr (ref (ignore-errors {} (read-string (slurp addr-file)))))
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
 (def v-offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
-(def offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
 (def action (atom ()))
-(println "Offers" @offer)
 (defstruct s-offer :txid :address :currency :amount :price :rcurrency)
 
 (defmacro now [] `(str (java.util.Date.)))
@@ -65,7 +63,7 @@
 
 (defn find-offer [amount currency rcurrency]
   (let [ret (transient [])] 
-    (doseq [foffer offer]
+    (doseq [foffer v-offer]
       (if (and (= (foffer :currency) rcurrency)
                (= (foffer :rcurrency) currency)
                (>= (foffer :amount) amount))
@@ -113,7 +111,7 @@
   (spit wallet-file (str @wallet)))
 
 (defn save-offer []
-  (spit offer-file (str @offer)))
+  (spit offer-file (str @v-offer)))
 
 
 
@@ -150,7 +148,7 @@
            (nil? (content "currency"))) (json-answer {} {} 401)
           (not (number? (content "amount"))) (json-answer {} {} 404)
           (not (@addr (content "to"))) (json-answer {} {} 405)
-          (not (@currencies (content "currency"))) (json-answer {} {} 406)
+          (not (currencies (content "currency"))) (json-answer {} {} 406)
           true (do
                  (swap! action conj ["credit" txid (content "to") (content "currency") (content "amount")])
                  (json-answer {} {"txid" txid} 0)))))
@@ -173,7 +171,7 @@
                                                  (println "Offer")
                                                  (let [sline (struct s-offer (line 1) (line 2) (line 3) (line 4) (line 5) (line 6))]
                                                    (dosync
-                                                    (alter offer conj [(line 1) sline])))))
+                                                    (alter v-offer conj [(line 1) sline])))))
                                                     
           (= (first (last @action)) "credit") (do
                                                 (let [line (last @action)]
