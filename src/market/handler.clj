@@ -46,9 +46,11 @@
 (def offer-file "/Users/stephane/tmp/offer")
 (def addr (ref (ignore-errors {} (read-string (slurp addr-file)))))
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
+(def v-offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
 (def offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
 (def action (atom ()))
-(defstruct offer :txid :address :currency :amount :price :rcurrency)
+(println "Offers" @offer)
+(defstruct s-offer :txid :address :currency :amount :price :rcurrency)
 
 (defmacro now [] `(str (java.util.Date.)))
 
@@ -169,7 +171,7 @@
           (= (first (last @action)) "offer") (do
                                                (let [line (last @action)]
                                                  (println "Offer")
-                                                 (let [sline (struct offer (line 1) (line 2) (line 3) (line 4) (line 5) (line 6))]
+                                                 (let [sline (struct s-offer (line 1) (line 2) (line 3) (line 4) (line 5) (line 6))]
                                                    (dosync
                                                     (alter offer conj [(line 1) sline])))))
                                                     
@@ -201,7 +203,7 @@
   (GET "/shutdown"    {params :query-params} (json-answer params {:shutdown (exit)} 0))
   (GET "/actions"     {params :query-params} (json-answer params {:actions @action} 0))
   (GET "/wallets"     {params :query-params} (json-answer params {:wallets @wallet} 0))
-  (GET "/offers"      {params :query-params} (json-answer params {:offers @offer} 0))
+  (GET "/offers"      {params :query-params} (json-answer params {:voffers @v-offer} 0))
   (GET "/balance"     {params :query-params} (json-answer params {:balance (balance (params "address" "") (params "currency" ""))} 0))
   (POST "/credit"     {body :body} (if (= @shutdown 0)
                                      (let [b (slurp body)]
