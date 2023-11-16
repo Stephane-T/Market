@@ -165,6 +165,14 @@
                                                    (save-addr)
                                                    
                                                    (swap! action butlast))
+
+          (= (first (last @action)) "offer") (do
+                                               (let [line (last @action)]
+                                                 (println "Offer")
+                                                 (let [sline (struct offer (line 1) (line 2) (line 3) (line 4) (line 5) (line 6))]
+                                                   (dosync
+                                                    (alter offer conj [(line 1) sline])))))
+                                                    
           (= (first (last @action)) "credit") (do
                                                 (let [line (last @action)]
                                                   (println "Credit")
@@ -193,6 +201,7 @@
   (GET "/shutdown"    {params :query-params} (json-answer params {:shutdown (exit)} 0))
   (GET "/actions"     {params :query-params} (json-answer params {:actions @action} 0))
   (GET "/wallets"     {params :query-params} (json-answer params {:wallets @wallet} 0))
+  (GET "/offers"      {params :query-params} (json-answer params {:offers @offer} 0))
   (GET "/balance"     {params :query-params} (json-answer params {:balance (balance (params "address" "") (params "currency" ""))} 0))
   (POST "/credit"     {body :body} (if (= @shutdown 0)
                                      (let [b (slurp body)]
