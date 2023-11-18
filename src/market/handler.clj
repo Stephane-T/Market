@@ -14,6 +14,7 @@
 
 (def lstatus {0 "Success"
               101 "Shutdown in process"
+              201 "Not enough balance"
               401 "Missing parameter"
               402 "Incorrect data"
               403 "Incorrect parameter"
@@ -135,7 +136,22 @@
                  (swap! action conj ["offer" txid (content "address") (content "currency") (content "amount") (content "price") (content "rcurrency")])
                  (json-answer {} {"txid" txid} 0)))))
     
-           
+
+
+(defn balance [addr currency]
+  (round (currencies currency 2) (wallet (str addr "--" currency) 0)))
+
+
+(defn _credit [txid addr currency amount]
+  (let [wallet-ref (str addr "--" currency)]
+    (if (>= (+ (balance addr currency) amount) 0)
+      (do
+        (dosync
+         (alter wallet conj [wallet-ref (+ (balance addr currency) amount)]))
+        (save-event "credit" txid addr currency amount "")
+        (swap! action conj ["save-wallet"])
+        true)
+      nil)))
 
            
 (defn credit [json]
@@ -150,19 +166,10 @@
           (not (@addr (content "to"))) (json-answer {} {} 405)
           (not (currencies (content "currency"))) (json-answer {} {} 406)
           true (do
-                 (_credit txid (content "to") (content "currency") (content "amount"))
-                 (json-answer {} {"txid" txid} 0)))))
+                 (if (_credit txid (content "to") (content "currency") (content "amount"))
+                   (json-answer {} {"txid" txid} 0)
+                   (json-answer {} {"txid" txid} 201))))))
                                        
-
-(defn balance [addr currency]
-  (round (currencies currency 2) (wallet (str addr "--" currency) 0)))
-
-(defn _credit (txid addr currency amount)
-  (let [wallet-ref (str addr "--" currency)]
-    (dosync
-     (alter wallet conj [wallet-ref (+ (@wallet wallet-ref) amount)])))
-  (save-event txid addr currency amount)
-  (swap! action conj ["save-wallet"]))
 
 (future
   (while true
@@ -174,7 +181,7 @@
 
           (= (first (last @action)) "save-wallet") (
                                                     (println "Save Wallet")
-                                                    (wave-wallet)
+                                                    (save-wallet)
                                                     (swap! action butlast))
           (= (first (last @action)) "offer") (do
                                                (let [line (last @action)]
