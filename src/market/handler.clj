@@ -159,7 +159,8 @@
 
 (defn _credit (txid addr currency amount)
   (let [wallet-ref (str addr "--" currency)]
-    (alter wallet conj [wallet-ref (+ (@wallet wallet-ref) amount)]))
+    (dosync
+     (alter wallet conj [wallet-ref (+ (@wallet wallet-ref) amount)])))
   (save-event txid addr currency amount)
   (swap! action conj ["save-wallet"]))
 
