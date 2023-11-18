@@ -150,13 +150,18 @@
           (not (@addr (content "to"))) (json-answer {} {} 405)
           (not (currencies (content "currency"))) (json-answer {} {} 406)
           true (do
-                 (swap! action conj ["credit" txid (content "to") (content "currency") (content "amount")])
+                 (_credit txid (content "to") (content "currency") (content "amount"))
                  (json-answer {} {"txid" txid} 0)))))
                                        
 
 (defn balance [addr currency]
   (round (currencies currency 2) (wallet (str addr "--" currency) 0)))
 
+(defn _credit (txid addr currency amount)
+  (let [wallet-ref (str addr "--" currency)]
+    (alter wallet conj [wallet-ref (+ (@wallet wallet-ref) amount)]))
+  (save-event txid addr currency amount)
+  (swap! action conj ["save-wallet"]))
 
 (future
   (while true
@@ -166,6 +171,10 @@
                                                    
                                                    (swap! action butlast))
 
+          (= (first (last @action)) "save-wallet") (
+                                                    (println "Save Wallet")
+                                                    (wave-wallet)
+                                                    (swap! action butlast))
           (= (first (last @action)) "offer") (do
                                                (let [line (last @action)]
                                                  (println "Offer")
@@ -173,17 +182,6 @@
                                                    (dosync
                                                     (alter v-offer conj [(line 1) sline])))))
                                                     
-          (= (first (last @action)) "credit") (do
-                                                (let [line (last @action)]
-                                                  (println "Credit")
-                                                  (dosync
-                                                   (alter wallet conj [(str (line 2) "--" (line 3))
-                                                                       (+ (get @wallet (str (line 2) "--" (line 3)) 0)
-                                                                          (line 4))]))
-                                                  (save-wallet)
-                                                  (save-event (line 0) (line 1) (line 2) (line 3) (line 4) "")
-                                                  (swap! action butlast)))
-                                                
           (= (first (last @action)) "save-event") (do
                                                     (let [line (last @action)]
                                                       (spit event-file (format "%s,%s,%s,%s,%s,%s,%s\n"
