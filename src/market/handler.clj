@@ -49,7 +49,6 @@
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
 (def v-offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
 (def action (atom ()))
-(defstruct s-offer :txid :address :currency :amount :price :rcurrency)
 
 (defmacro now [] `(str (java.util.Date.)))
 
@@ -116,6 +115,23 @@
 
 
 
+(defn balance [addr currency]
+  (round (currencies currency 2) (wallet (str addr "--" currency) 0)))
+
+
+
+(defn _credit [txid addr currency amount]
+  (let [wallet-ref (str addr "--" currency)]
+    (dosync
+     (if (>= (+ (balance addr currency) amount) 0)
+       (do
+         (alter wallet conj [wallet-ref (+ (balance addr currency) amount)])
+         (save-event "credit" txid addr currency amount "")
+         (swap! action conj ["save-wallet"])
+         true)
+       nil))))
+
+
 (defn offer [json]
   (let [content (ignore-errors [] (json/parse-string json))
         txid (str "O" (generate-random-hash))]
@@ -133,25 +149,18 @@
           (not (number? (content "price"))) (json-answer {} {} 407)
           (not (@currencies (content "rcurrency"))) (json {} {} 406)
           true (do
-                 (swap! action conj ["offer" txid (content "address") (content "currency") (content "amount") (content "price") (content "rcurrency")])
-                 (json-answer {} {"txid" txid} 0)))))
+                 (dosync
+                  (if (> (- (balance (content "address") (content "currency")) (content "amount")) 0)
+                    (do
+                      (apply v-offer conj [txid (content "address") (content "currency") (content "amount") (content "price") (content "rcurrency")])
+                      (_credit (content "address") (content "currency") (* (content "amount") -1))
+                      (save-offer)
+                      (json-answer {} {"txid" txid} 0))
+                    (json-answer {} {} 201)))))))
+                    
     
 
 
-(defn balance [addr currency]
-  (round (currencies currency 2) (wallet (str addr "--" currency) 0)))
-
-
-(defn _credit [txid addr currency amount]
-  (let [wallet-ref (str addr "--" currency)]
-    (if (>= (+ (balance addr currency) amount) 0)
-      (do
-        (dosync
-         (alter wallet conj [wallet-ref (+ (balance addr currency) amount)]))
-        (save-event "credit" txid addr currency amount "")
-        (swap! action conj ["save-wallet"])
-        true)
-      nil)))
 
            
 (defn credit [json]
@@ -183,13 +192,10 @@
                                                     (println "Save Wallet")
                                                     (save-wallet)
                                                     (swap! action butlast))
-          (= (first (last @action)) "offer") (do
-                                               (let [line (last @action)]
-                                                 (println "Offer")
-                                                 (let [sline (struct s-offer (line 1) (line 2) (line 3) (line 4) (line 5) (line 6))]
-                                                   (dosync
-                                                    (alter v-offer conj [(line 1) sline])))))
-                                                    
+          (= (first (last @action)) "save-offer") (
+                                                   (println "Save Offer")
+                                                   (save-offer)
+                                                   (swap! action butlast))
           (= (first (last @action)) "save-event") (do
                                                     (let [line (last @action)]
                                                       (spit event-file (format "%s,%s,%s,%s,%s,%s,%s\n"
