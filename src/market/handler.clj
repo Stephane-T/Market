@@ -47,7 +47,7 @@
 (def offer-file "/Users/stephane/tmp/offer")
 (def addr (ref (ignore-errors {} (read-string (slurp addr-file)))))
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
-(def v-offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
+(def v-offer (ref (ignore-errors [] (read-string (slurp offer-file)))))
 (def action (atom ()))
 
 (defmacro now [] `(str (java.util.Date.)))
@@ -144,16 +144,16 @@
            (nil? (content "rcurrency"))) (json-answer {} {} 401)
           
           (not (@addr (content "address"))) (json-answer {} {} 405)
-          (not (@currencies (content "currency"))) (json-answer {} {} 406)
+          (not (currencies (content "currency"))) (json-answer {} {} 406)
           (not (number? (content "amount"))) (json-answer {} {} 404)
           (not (number? (content "price"))) (json-answer {} {} 407)
-          (not (@currencies (content "rcurrency"))) (json {} {} 406)
+          (not (currencies (content "rcurrency"))) (json {} {} 406)
           true (do
                  (dosync
-                  (if (> (- (balance (content "address") (content "currency")) (content "amount")) 0)
+                  (if (>= (- (balance (content "address") (content "currency")) (content "amount")) 0)
                     (do
-                      (apply v-offer conj [txid (content "address") (content "currency") (content "amount") (content "price") (content "rcurrency")])
-                      (_credit (content "address") (content "currency") (* (content "amount") -1))
+                      (alter v-offer conj [txid (content "address") (content "currency") (content "amount") (content "price") (content "rcurrency")])
+                      (_credit txid (content "address") (content "currency") (* (content "amount") -1))
                       (save-offer)
                       (json-answer {} {"txid" txid} 0))
                     (json-answer {} {} 201)))))))
@@ -213,7 +213,7 @@
   (GET "/shutdown"    {params :query-params} (json-answer params {:shutdown (exit)} 0))
   (GET "/actions"     {params :query-params} (json-answer params {:actions @action} 0))
   (GET "/wallets"     {params :query-params} (json-answer params {:wallets @wallet} 0))
-  (GET "/offers"      {params :query-params} (json-answer params {:voffers @v-offer} 0))
+  (GET "/offers"      {params :query-params} (json-answer params {:offers @v-offer} 0))
   (GET "/balance"     {params :query-params} (json-answer params {:balance (balance (params "address" "") (params "currency" ""))} 0))
   (POST "/credit"     {body :body} (if (= @shutdown 0)
                                      (let [b (slurp body)]
