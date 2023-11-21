@@ -47,7 +47,7 @@
 (def offer-file "/Users/stephane/tmp/offer")
 (def addr (ref (ignore-errors {} (read-string (slurp addr-file)))))
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
-(def v-offer (ref (ignore-errors [] (read-string (slurp offer-file)))))
+(def v-offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
 (def action (atom ()))
 
 (defmacro now [] `(str (java.util.Date.)))
@@ -56,6 +56,8 @@
   (future (do
             (swap! shutdown inc)
             (swap! action conj "save-addr")
+            (swap! action conj "save-wallet")
+            (swap! action conj "save-offer")
             (sleep 10)
             (shutdown-agents)
             (System/exit 0)))
@@ -152,7 +154,7 @@
                  (dosync
                   (if (>= (- (balance (content "address") (content "currency")) (content "amount")) 0)
                     (do
-                      (alter v-offer conj [txid (content "address") (content "currency") (content "amount") (content "price") (content "rcurrency")])
+                      (alter v-offer conj [txid [(content "address") (content "currency") (content "amount") (content "price") (content "rcurrency")]])
                       (_credit txid (content "address") (content "currency") (* (content "amount") -1))
                       (save-offer)
                       (json-answer {} {"txid" txid} 0))
@@ -185,7 +187,6 @@
     (cond (= (first (last @action)) "save-addr") (do
                                                    (println "Save address")
                                                    (save-addr)
-                                                   
                                                    (swap! action butlast))
 
           (= (first (last @action)) "save-wallet") (
