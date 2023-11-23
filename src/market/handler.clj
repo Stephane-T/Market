@@ -49,6 +49,7 @@
 (def wallet (ref (ignore-errors {} (read-string (slurp wallet-file)))))
 (def v-offer (ref (ignore-errors {} (read-string (slurp offer-file)))))
 (def action (atom ()))
+(def offer-to-check (ref ()))
 
 (defmacro now [] `(str (java.util.Date.)))
 
@@ -133,6 +134,26 @@
          true)
        nil))))
 
+
+(defn check-offer [_key _reference _old of]
+  (doseq [en (keys of)]
+    (let [e-amount (nth (of en) 2)
+          e-currency (nth (of en) 1)
+          e-rcurrency (nth (of en) 4)
+          e-price (nth (of en) 3)]
+      (doseq [in (keys of)]
+        (let [i-amount (nth (of in) 2)
+              i-currency (nth (of in) 1)
+              i-rcurrency (nth (of in) 4)
+              i-price (nth (of in) 3)]
+          (if (and
+               (= e-currency i-rcurrency)
+               (= e-rcurrency i-currency)
+               (> e-price (/ 1.0 i-price)))
+            (dosync (alter offer-to-check conj [en in]))))))))
+
+(add-watch v-offer :watcher check-offer)
+    
 
 (defn offer [json]
   (let [content (ignore-errors [] (json/parse-string json))
