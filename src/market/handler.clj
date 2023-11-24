@@ -202,6 +202,26 @@
                    (json-answer {} {"txid" txid} 0)
                    (json-answer {} {"txid" txid} 201))))))
                                        
+(defn process-offer [from to]
+  (if (or (nil? (@offers from))
+          (nil? (@offers to)))
+    nil
+    (do
+      (let [from-address (nth (@offers from) 0)
+            from-currency (nth (@offers from) 1)
+            from-amount (nth (@offers from) 2)
+            from-price (nth (@offers from) 3)
+            from-rcurrency (nth (@offers from) 4)
+            to-address (nth (@offers to) 0)
+            to-currency (nth (@offers to) 1)
+            to-amount (nth (@offers to) 2)
+            to-price (nth (@offers to) 3)
+            to-rcurrency (nth (@offers to) 4)]
+        (if (and
+             (= from-currency to-rcurrency)
+             (= from-rcurrency to-currency)
+             
+
 
 (future
   (while true
@@ -210,11 +230,11 @@
                                                    (save-addr)
                                                    (swap! action butlast))
 
-          (= (first (last @action)) "save-wallet") (
+          (= (first (last @action)) "save-wallet") (do
                                                     (println "Save Wallet")
                                                     (save-wallet)
                                                     (swap! action butlast))
-          (= (first (last @action)) "save-offer") (
+          (= (first (last @action)) "save-offer") (do
                                                    (println "Save Offer")
                                                    (save-offer)
                                                    (swap! action butlast))
@@ -224,6 +244,11 @@
                                                                                (now) (line 1) (line 2) (line 3) (line 4)
                                                                                (line 5) (line 6)) :append true))
                                                     (swap! action butlast))
+          (not (nil? (first @offer-to-check))) (do
+                                                 (let [from (first (first @offer-to-check))
+                                                       to (second (first @offer-to-check))]
+                                                   (dosync (alter offer-to-check rest))
+                                                   (process-offer from to)))
           true (sleep 1))))
 
 
