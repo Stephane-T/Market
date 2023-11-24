@@ -169,7 +169,7 @@
           (not (@addr (content "address"))) (json-answer {} {} 405)
           (not (currencies (content "currency"))) (json-answer {} {} 406)
           (not (number? (content "amount"))) (json-answer {} {} 404)
-          (not (number? (content "price"))) (json-answer {} {} 407)
+          (not (number? (content "price" ))) (json-answer {} {} 407)
           (not (currencies (content "rcurrency"))) (json {} {} 406)
           true (do
                  (dosync
@@ -237,6 +237,7 @@
   (GET "/wallets"     {params :query-params} (json-answer params {:wallets @wallet} 0))
   (GET "/offers"      {params :query-params} (json-answer params {:offers @v-offer} 0))
   (GET "/balance"     {params :query-params} (json-answer params {:balance (balance (params "address" "") (params "currency" ""))} 0))
+  (GET "/cof"         {params :query-params} (json-answer params {:offers-to-check @offer-to-check} 0))
   (POST "/credit"     {body :body} (if (= @shutdown 0)
                                      (let [b (slurp body)]
                                        (println b)
