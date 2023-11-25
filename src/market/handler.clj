@@ -218,9 +218,13 @@
             to-price (nth (@offers to) 3)
             to-rcurrency (nth (@offers to) 4)]
         (if (and
+             (not (nil? from-address))
+             (not (nil? to-address))
              (= from-currency to-rcurrency)
-             (= from-rcurrency to-currency)
-             
+             (= from-rcurrency to-currency))
+          (dosync
+           (alter offers dissoc from)
+           (alter offers dissoc to)))))))
 
 
 (future
